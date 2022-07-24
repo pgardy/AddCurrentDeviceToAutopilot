@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.1
+.VERSION 2.3
 .GUID ec909599-b3ae-48fa-a331-72c40493d267
 .AUTHOR Piotr Gardy
 .COMPANYNAME
@@ -12,7 +12,7 @@
 .REQUIREDSCRIPTS
 .EXTERNALSCRIPTDEPENDENCIES
 .RELEASENOTES
-Version 2.1: Bugfixing after testing 2.0 version
+Version 2.3: Bugfixing after testing 2.0 version
 Version 2.0: Migrated to new Powershell module (Microsoft.Graph.Authentication + Microsoft.Graph.DeviceManagement.Enrolment) p;us more functionalities
 Version 1.0: Original published version
 #>
