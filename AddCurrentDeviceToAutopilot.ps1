@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.5
+.VERSION 2.6
 .GUID ec909599-b3ae-48fa-a331-72c40493d267
 .AUTHOR Piotr Gardy
 .COMPANYNAME
@@ -12,6 +12,7 @@
 .REQUIREDSCRIPTS
 .EXTERNALSCRIPTDEPENDENCIES
 .RELEASENOTES
+Version 2.6: Going away from  DeviceManagementWindowsAutopilotDeviceIdentity
 Version 2.5: Using Beta modules (and /Beta endpoint) for DeviceManagementWindowsAutopilotDeviceIdentity commandlets
 Version 2.4: Fixing errors after Microsoft.Graph modules have been upgraded to 2.0
 Version 2.3: Bugfixing after testing 2.0 version
@@ -86,21 +87,15 @@ Param(
 
     [Parameter(Mandatory = $false,
         HelpMessage = "Specify if you want to restart a device when import was finished. `$true by default")]
-    [bool]$DoRestart = $true ,
-
-    [Parameter(Mandatory = $false,
-        HelpMessage = "Path where to save and use hardware hash data. By default it is: c:\windows\temp\DeviceHardwareData.txt")]
-    [string]$DeviceHashFilePath = "c:\windows\temp\DeviceHardwareData.txt"
-    
+    [bool]$DoRestart = $true 
 )
 
 ##### Main Part #################
 
 Write-host "Checking and installing, missing, modules"
 #Installing modules
-$InstalledModules = Get-Module -ListAvailable -Name Microsoft.Graph.Authentication, Microsoft.Graph.Beta.DeviceManagement.Enrollment
+$InstalledModules = Get-Module -ListAvailable -Name Microsoft.Graph.Authentication
 if ($InstalledModules.Name -inotcontains "Microsoft.Graph.Authentication") { Install-Module Microsoft.Graph.Authentication -Scope CurrentUser -Force }
-if ($InstalledModules.Name -inotcontains "Microsoft.Graph.Beta.DeviceManagement.Enrollment") { Install-Module Microsoft.Graph.Beta.DeviceManagement.Enrollment -Scope CurrentUser -Force }
 
 #Importing modules
 Import-Module Microsoft.Graph.Authentication
@@ -121,31 +116,38 @@ else {
     }
 }
 
-#Get Hardware Hash
-if ( !(Test-Path $DeviceHashFilePath)  ) {
-    $hwid = (Get-WMIObject -Namespace root/cimv2/mdm/dmmap -Class MDM_DevDetail_Ext01 -Filter "InstanceID='Ext' AND ParentID='./DevDetail'").DeviceHardwareData
-    $content = [System.Convert]::FromBase64String($hwid  )
-    Set-Content -Path $DeviceHashFilePath  -Value $Content -Encoding Byte
-}
+$hwid = (Get-WMIObject -Namespace root/cimv2/mdm/dmmap -Class MDM_DevDetail_Ext01 -Filter "InstanceID='Ext' AND ParentID='./DevDetail'").DeviceHardwareData
+#$hwbase64 = [System.Text.Encoding]::ascii.getstring([System.Convert]::FromBase64String($hwid))
 
 #Get SerialNumber
 $ser = (Get-WmiObject win32_bios).SerialNumber
 
 
 #check id device is already present in the tenant
-$dev = Get-MgBetaDeviceManagementWindowsAutopilotDeviceIdentity -Filter "contains(serialNumber,'$($ser)')" -ErrorAction SilentlyContinue
+#$dev = Get-MgBetaDeviceManagementWindowsAutopilotDeviceIdentity -Filter "contains(serialNumber,'$($ser)')" -ErrorAction SilentlyContinue
+$httpresult = Invoke-MgGraphRequest  -uri   "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?`$filter=contains(serialNumber,'$ser')"
+$dev = $httpresult.value[0] 
 if ($null -eq $dev) {
     #building importing command
     Write-host "$((get-date).ToLongTimeString()) : Adding device to Autopilot"
-    $expr = "New-MgBetaDeviceManagementImportedWindowsAutopilotDeviceIdentity -SerialNumber ""$($ser)"" -HardwareIdentifierInputFile ""$($DeviceHashFilePath)"" " 
+    $body = @{
+        "@odata.type" = "#microsoft.graph.importedWindowsAutopilotDeviceIdentity"
+        "serialNumber" = $ser
+        "hardwareIdentifier" = $hwid 
+    }
+    #-Method POST -Body  $body -ContentType 'application/json'
+    #$expr = "New-MgBetaDeviceManagementImportedWindowsAutopilotDeviceIdentity -SerialNumber ""$($ser)"" -HardwareIdentifierInputFile ""$($DeviceHashFilePath)"" " 
     if ($GroupTag -ne "") {
-        $expr += " -GroupTag ""$($GroupTag)"""
+        #$expr += " -GroupTag ""$($GroupTag)"""
+        $body.Add("groupTag",$GroupTag)
     }
     if ($AssignedUserPrincipalName -ne "") {
-        $expr += " -AssignedUserPrincipalName ""$($AssignedUserPrincipalName)"""
+        #$expr += " -AssignedUserPrincipalName ""$($AssignedUserPrincipalName)"""
+        $body.Add("assignedUserPrincipalName",$AssignedUserPrincipalName)
     }
     #invoking import of the device
-    Invoke-Expression $expr
+    #Invoke-Expression $expr
+    Invoke-MgGraphRequest -Method POST -Body  $body -ContentType 'application/json' -Uri "https://graph.microsoft.com/beta/deviceManagement/importedWindowsAutopilotDeviceIdentities"
     write-host "Added device to Autopilot"
 }
 else {
@@ -158,7 +160,9 @@ try { Invoke-MgGraphRequest -Uri "https://graph.microsoft.com/$($GraphVersion)/d
 do {
     
     Start-Sleep -Seconds 30
-    $dev = Get-MgBetaDeviceManagementWindowsAutopilotDeviceIdentity -Filter "contains(serialNumber,'$($ser)')" -ErrorAction SilentlyContinue
+    #$dev = Get-MgBetaDeviceManagementWindowsAutopilotDeviceIdentity -Filter "contains(serialNumber,'$($ser)')" -ErrorAction SilentlyContinue
+    $httpresult = Invoke-MgGraphRequest  -uri   "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?`$filter=contains(serialNumber,'$ser')"
+    $dev = $httpresult.value[0] 
     if ($null -ne $dev) {
         Write-host "$((get-date).ToLongTimeString()) : $($dev.deploymentProfileAssignmentStatus)"
         if (($dev.DeploymentProfileAssignmentStatus -ine "notAssigned") -and ($dev.DeploymentProfileAssignmentStatus -ine "pending") ) {
