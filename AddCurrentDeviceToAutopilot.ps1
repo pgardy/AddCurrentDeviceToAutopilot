@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.6
+.VERSION 2.7
 .GUID ec909599-b3ae-48fa-a331-72c40493d267
 .AUTHOR Piotr Gardy
 .COMPANYNAME
@@ -99,7 +99,7 @@ if ($InstalledModules.Name -inotcontains "Microsoft.Graph.Authentication") { Ins
 
 #Importing modules
 Import-Module Microsoft.Graph.Authentication
-Import-Module Microsoft.Graph.Beta.DeviceManagement.Enrollment
+#Import-Module Microsoft.Graph.Beta.DeviceManagement.Enrollment
 
 
 Write-host "Initiating authentication to AAD"
