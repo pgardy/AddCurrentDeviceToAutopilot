@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.7
+.VERSION 2.8
 .GUID ec909599-b3ae-48fa-a331-72c40493d267
 .AUTHOR Piotr Gardy
 .COMPANYNAME
@@ -12,6 +12,7 @@
 .REQUIREDSCRIPTS
 .EXTERNALSCRIPTDEPENDENCIES
 .RELEASENOTES
+Version 2.8: Adding  -ContextScope Process to Connect-MgGraph
 Version 2.6: Going away from  DeviceManagementWindowsAutopilotDeviceIdentity
 Version 2.5: Using Beta modules (and /Beta endpoint) for DeviceManagementWindowsAutopilotDeviceIdentity commandlets
 Version 2.4: Fixing errors after Microsoft.Graph modules have been upgraded to 2.0
@@ -105,11 +106,11 @@ Import-Module Microsoft.Graph.Authentication
 Write-host "Initiating authentication to AAD"
 #connecting to AzureAD
 if ($PSBoundParameters.ContainsKey('UseLegacyAppId')) {
-    Connect-MgGraph -Scopes $scopes -ClientId d1ddf0e4-d672-4dae-b554-9d5bdfd93547 -UseDeviceAuthentication     
+    Connect-MgGraph -Scopes $scopes -ClientId d1ddf0e4-d672-4dae-b554-9d5bdfd93547 -UseDeviceAuthentication  -ContextScope Process     
 }
 else {
     if ($PSBoundParameters.ContainsKey('UseDeviceAuth')) {
-        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication
+        Connect-MgGraph -Scopes $scopes -UseDeviceAuthentication  -ContextScope Process
     }
     else {
         Connect-MgGraph -Scopes $scopes 
